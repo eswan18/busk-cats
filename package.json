@@ -1,0 +1,19 @@
+{
+  "name": "email-subscribe",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240512.0",
+    "tsx": "^4.11.0",
+    "typescript": "^5.4.5",
+    "wrangler": "^3.57.0"
+  }
+}
