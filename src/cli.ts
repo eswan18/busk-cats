@@ -96,6 +96,27 @@ program
   });
 
 program
+  .command("draft")
+  .description("Generate a full HTML email document (prints to stdout)")
+  .requiredOption("--subject <subject>", "Email subject (used as the title)")
+  .requiredOption("--text <text>", "Plain text content for the email body")
+  .action((opts: { subject: string; text: string }) => {
+    const paragraphs = opts.text.split("\n").filter(Boolean).map((p) => `  <p>${p}</p>`).join("\n");
+    console.log(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${opts.subject}</title>
+</head>
+<body style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
+  <h1 style="font-size: 24px;">${opts.subject}</h1>
+${paragraphs}
+</body>
+</html>`);
+  });
+
+program
   .command("form")
   .description("Generate an HTML subscribe form snippet for a list")
   .requiredOption("--list <list>", "Mailing list name")

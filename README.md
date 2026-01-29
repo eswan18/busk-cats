@@ -88,6 +88,14 @@ Or from a file:
 npx tsx src/cli.ts send --list my-blog --subject "New post: Title" --html-file email.html
 ```
 
+### Draft an HTML email
+
+```bash
+npx tsx src/cli.ts draft --subject "Stuff is Happening" --text "Yep it's me"
+```
+
+Prints a full HTML email document to stdout. Pipe to a file for use with `send --html-file`.
+
 ### Add a subscriber directly (skip confirmation)
 
 ```bash

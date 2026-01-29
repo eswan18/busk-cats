@@ -10,7 +10,8 @@ export interface Env {
 function corsHeaders(request: Request, env: Env): HeadersInit {
   const origin = request.headers.get("Origin") ?? "";
   const allowed = (env.ALLOWED_ORIGINS ?? "").split(",").map((s) => s.trim());
-  const match = allowed.includes(origin);
+  const isLocalhost = origin.startsWith("http://localhost:") || origin === "http://localhost";
+  const match = allowed.includes(origin) || isLocalhost;
   return {
     "Access-Control-Allow-Origin": match ? origin : "",
     "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
@@ -138,7 +139,10 @@ async function handleSend(request: Request, env: Env): Promise<Response> {
   let sent = 0;
   for (const sub of results) {
     const unsubLink = `${env.WORKER_URL}/unsubscribe?token=${sub.token}`;
-    const fullHtml = `${body.html}<p><a href="${unsubLink}">Unsubscribe</a></p>`;
+    const unsubBlock = `<p style="margin-top:2em;font-size:0.85em;color:#666;"><a href="${unsubLink}">Unsubscribe</a></p>`;
+    const fullHtml = body.html.includes("</body>")
+      ? body.html.replace("</body>", `${unsubBlock}</body>`)
+      : `${body.html}${unsubBlock}`;
     await sendEmail(env, sub.email, body.subject, fullHtml);
     sent++;
   }
