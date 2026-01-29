@@ -94,6 +94,14 @@ npx tsx src/cli.ts send --list my-blog --subject "New post: Title" --html-file e
 npx tsx src/cli.ts add --email "someone@example.com" --list my-blog
 ```
 
+### Generate a subscribe form snippet
+
+```bash
+npx tsx src/cli.ts form --list my-blog
+```
+
+Outputs a ready-to-paste HTML form with your worker URL and list name embedded.
+
 ### Delete a subscriber
 
 ```bash
