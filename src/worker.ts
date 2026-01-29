@@ -136,15 +136,21 @@ async function handleSend(request: Request, env: Env): Promise<Response> {
     .bind(body.list)
     .all<{ email: string; token: string }>();
 
+  const BATCH_SIZE = 10;
   let sent = 0;
-  for (const sub of results) {
-    const unsubLink = `${env.WORKER_URL}/unsubscribe?token=${sub.token}`;
-    const unsubBlock = `<p style="margin-top:2em;font-size:0.85em;color:#666;"><a href="${unsubLink}">Unsubscribe</a></p>`;
-    const fullHtml = body.html.includes("</body>")
-      ? body.html.replace("</body>", `${unsubBlock}</body>`)
-      : `${body.html}${unsubBlock}`;
-    await sendEmail(env, sub.email, body.subject, fullHtml);
-    sent++;
+  for (let i = 0; i < results.length; i += BATCH_SIZE) {
+    const batch = results.slice(i, i + BATCH_SIZE);
+    await Promise.all(
+      batch.map((sub) => {
+        const unsubLink = `${env.WORKER_URL}/unsubscribe?token=${sub.token}`;
+        const unsubBlock = `<p style="margin-top:2em;font-size:0.85em;color:#666;"><a href="${unsubLink}">Unsubscribe</a></p>`;
+        const fullHtml = body.html.includes("</body>")
+          ? body.html.replace("</body>", `${unsubBlock}</body>`)
+          : `${body.html}${unsubBlock}`;
+        return sendEmail(env, sub.email, body.subject, fullHtml);
+      }),
+    );
+    sent += batch.length;
   }
 
   return json({ sent }, request, env);
