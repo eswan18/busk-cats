@@ -96,6 +96,39 @@ program
   });
 
 program
+  .command("form")
+  .description("Generate an HTML subscribe form snippet for a list")
+  .requiredOption("--list <list>", "Mailing list name")
+  .action((opts: { list: string }) => {
+    console.log(`<form id="subscribe-form">
+  <input type="email" id="subscribe-email" placeholder="you@example.com" required />
+  <button type="submit">Subscribe</button>
+</form>
+<p id="subscribe-message" style="display:none;"></p>
+<script>
+  document.getElementById("subscribe-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = document.getElementById("subscribe-email").value;
+    const msg = document.getElementById("subscribe-message");
+    try {
+      const res = await fetch("${WORKER_URL}/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, list: "${opts.list}" }),
+      });
+      const data = await res.json();
+      msg.textContent = data.ok
+        ? "Check your email to confirm your subscription."
+        : data.error || "Something went wrong.";
+    } catch {
+      msg.textContent = "Something went wrong.";
+    }
+    msg.style.display = "block";
+  });
+</script>`);
+  });
+
+program
   .command("delete")
   .description("Delete a subscriber by email (optionally from a specific list)")
   .requiredOption("--email <email>", "Email to delete")
