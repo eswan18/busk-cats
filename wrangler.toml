@@ -1,12 +1,13 @@
-name = "email-subscribe"
+name = "busk-cats"
 main = "src/worker.ts"
 compatibility_date = "2024-01-01"
 
 [vars]
-WORKER_URL = "https://email-subscribe.<account>.workers.dev"
-FROM_EMAIL = "blog@ethanswan.com"
+WORKER_URL = "https://busk-cats.ethanpswan.workers.dev"
+FROM_EMAIL = "buskcats@mail.identity.ethanswan.com"
+ALLOWED_ORIGINS = "https://ethanswan.com"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "email-subscribers"
-database_id = "<to be filled in after creation>"
+database_name = "newsletter-subscribers"
+database_id = "306e806a-b5a3-41bb-b8fe-2ed0d254a6cb"
