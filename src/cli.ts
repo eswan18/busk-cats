@@ -7,20 +7,23 @@ if (envFileIdx !== -1 && process.argv[envFileIdx + 1]) {
   dotenv.config({ path: process.argv[envFileIdx + 1] });
 }
 
-const WORKER_URL = process.env.WORKER_URL;
-const ADMIN_SECRET = process.env.ADMIN_SECRET;
-
-if (!WORKER_URL || !ADMIN_SECRET) {
-  console.error("Missing WORKER_URL or ADMIN_SECRET in environment. Set them via --env-file or export them.");
-  process.exit(1);
+function requireEnv(): { workerUrl: string; adminSecret: string } {
+  const workerUrl = process.env.WORKER_URL;
+  const adminSecret = process.env.ADMIN_SECRET;
+  if (!workerUrl || !adminSecret) {
+    console.error("Missing WORKER_URL or ADMIN_SECRET in environment. Set them via --env-file or export them.");
+    process.exit(1);
+  }
+  return { workerUrl, adminSecret };
 }
 
 async function apiCall(method: string, path: string, body?: unknown): Promise<unknown> {
-  const res = await fetch(`${WORKER_URL}${path}`, {
+  const { workerUrl, adminSecret } = requireEnv();
+  const res = await fetch(`${workerUrl}${path}`, {
     method,
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${ADMIN_SECRET}`,
+      Authorization: `Bearer ${adminSecret}`,
     },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -121,6 +124,7 @@ program
   .description("Generate an HTML subscribe form snippet for a list")
   .requiredOption("--list <list>", "Mailing list name")
   .action((opts: { list: string }) => {
+    const { workerUrl } = requireEnv();
     console.log(`<form id="subscribe-form">
   <input type="email" id="subscribe-email" placeholder="you@example.com" required />
   <button type="submit">Subscribe</button>
@@ -132,7 +136,7 @@ program
     const email = document.getElementById("subscribe-email").value;
     const msg = document.getElementById("subscribe-message");
     try {
-      const res = await fetch("${WORKER_URL}/subscribe", {
+      const res = await fetch("${workerUrl}/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, list: "${opts.list}" }),
