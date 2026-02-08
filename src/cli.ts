@@ -100,21 +100,30 @@ program
 
 program
   .command("draft")
-  .description("Generate a full HTML email document (prints to stdout)")
-  .requiredOption("--subject <subject>", "Email subject (used as the title)")
-  .requiredOption("--text <text>", "Plain text content for the email body")
-  .action((opts: { subject: string; text: string }) => {
-    const paragraphs = opts.text.split("\n").filter(Boolean).map((p) => `  <p>${p}</p>`).join("\n");
+  .description("Generate a new-post notification email (prints HTML to stdout)")
+  .requiredOption("--title <title>", "Post title")
+  .option("--subtitle <subtitle>", "Post subtitle")
+  .requiredOption("--link <link>", "Link to the post")
+  .requiredOption("--site-name <name>", "Website name (e.g. ethanswan.com)")
+  .requiredOption("--site-url <url>", "Website URL (e.g. https://ethanswan.com)")
+  .action((opts: { title: string; subtitle?: string; link: string; siteName: string; siteUrl: string }) => {
+    const subtitleHtml = opts.subtitle
+      ? `\n  <p style="font-size: 16px; color: #666; margin: 4px 0 0;">${opts.subtitle}</p>`
+      : "";
     console.log(`<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${opts.subject}</title>
+  <title>${opts.title}</title>
 </head>
-<body style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
-  <h1 style="font-size: 24px;">${opts.subject}</h1>
-${paragraphs}
+<body style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; border-top: 4px solid #333;">
+  <p style="font-size: 14px; color: #666; margin: 16px 0;">New post on <a href="${opts.siteUrl}" style="color: #666;">${opts.siteName}</a></p>
+  <hr style="border: none; border-top: 1px solid #ddd; margin: 0 0 16px;">
+  <h1 style="font-size: 24px; margin: 0;">${opts.title}</h1>${subtitleHtml}
+  <p style="margin-top: 36px; text-align: center;">
+    <a href="${opts.link}" style="display: inline-block; padding: 10px 20px; background-color: #333; color: #fff; text-decoration: none; border-radius: 4px;">Read the Post</a>
+  </p>
 </body>
 </html>`);
   });
