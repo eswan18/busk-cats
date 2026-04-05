@@ -1,6 +1,6 @@
 import dotenv from "dotenv";
 import { program } from "commander";
-import { input } from "@inquirer/prompts";
+import { input, confirm } from "@inquirer/prompts";
 
 // Handle --env-file before anything else
 const envFileIdx = process.argv.indexOf("--env-file");
@@ -68,32 +68,67 @@ program.option("--env-file <path>", "Path to a .env file to load");
 
 program
   .command("send")
-  .description("Send an email to all confirmed subscribers on a list")
+  .description("Send a new-post announcement email to all confirmed subscribers on a list")
   .option("--list <list>", "Mailing list name")
-  .option("--subject <subject>", "Email subject")
-  .option("--html <html>", "HTML body as a string")
-  .option("--html-file <path>", "Path to an HTML file to use as the body")
-  .action(async (rawOpts: { list?: string; subject?: string; html?: string; htmlFile?: string }) => {
+  .option("--title <title>", "Post title (used as subject 'New Post: {title}' and heading)")
+  .option("--subtitle <subtitle>", "Post subtitle (optional)")
+  .option("--link <link>", "Link to the post")
+  .option("--site-name <name>", "Website name (e.g. ethanswan.com)")
+  .option("--site-url <url>", "Website URL (e.g. https://ethanswan.com)")
+  .option("-y, --yes", "Skip the confirmation prompt")
+  .action(async (rawOpts: {
+    list?: string;
+    title?: string;
+    subtitle?: string;
+    link?: string;
+    siteName?: string;
+    siteUrl?: string;
+    yes?: boolean;
+  }) => {
     const opts = await promptMissing(rawOpts, [
       { key: "list", message: "Mailing list name:" },
-      { key: "subject", message: "Email subject:" },
+      { key: "title", message: "Post title:" },
+      { key: "link", message: "Link to the post:" },
+      { key: "siteName", message: "Website name (e.g. ethanswan.com):" },
+      { key: "siteUrl", message: "Website URL (e.g. https://ethanswan.com):" },
     ]);
-    let htmlBody = opts.html;
-    if (!htmlBody && opts.htmlFile) {
-      const fs = await import("fs");
-      htmlBody = fs.readFileSync(opts.htmlFile, "utf-8");
+    const subject = `New Post: ${opts.title}`;
+    const subtitleHtml = opts.subtitle
+      ? `\n  <p style="font-size: 16px; color: #666; margin: 4px 0 0;">${opts.subtitle}</p>`
+      : "";
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${opts.title}</title>
+</head>
+<body style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; border-top: 4px solid #333;">
+  <p style="font-size: 14px; color: #666; margin: 16px 0;">New post on <a href="${opts.siteUrl}" style="color: #666;">${opts.siteName}</a></p>
+  <hr style="border: none; border-top: 1px solid #ddd; margin: 0 0 16px;">
+  <h1 style="font-size: 24px; margin: 0;">${opts.title}</h1>${subtitleHtml}
+  <p style="margin-top: 36px; text-align: center;">
+    <a href="${opts.link}" style="display: inline-block; padding: 10px 20px; background-color: #333; color: #fff; text-decoration: none; border-radius: 4px;">Read the Post</a>
+  </p>
+</body>
+</html>`;
+
+    if (!opts.yes) {
+      console.error("--- Email preview ---");
+      console.error(`List:    ${opts.list}`);
+      console.error(`Subject: ${subject}`);
+      console.error("Body:");
+      console.error(html);
+      console.error("---------------------");
+      const ok = await confirm({ message: "Send this email?", default: false }, PROMPT_CTX);
+      if (!ok) {
+        console.error("Cancelled.");
+        return;
+      }
     }
-    if (!htmlBody) {
-      const htmlFile = await promptText("Path to HTML file:");
-      const fs = await import("fs");
-      htmlBody = fs.readFileSync(htmlFile, "utf-8");
-    }
-    const result = await apiCall("POST", "/send", {
-      subject: opts.subject,
-      html: htmlBody,
-      list: opts.list,
-    });
-    console.log(result);
+
+    const result = (await apiCall("POST", "/send", { subject, html, list: opts.list })) as { sent: number };
+    console.log(`Sent to ${result.sent} subscriber(s).`);
   });
 
 program
@@ -133,42 +168,6 @@ program
     ]);
     const result = await apiCall("POST", "/admin/add", { email: opts.email, list: opts.list });
     console.log(result);
-  });
-
-program
-  .command("draft")
-  .description("Generate a new-post notification email (prints HTML to stdout)")
-  .option("--title <title>", "Post title")
-  .option("--subtitle <subtitle>", "Post subtitle")
-  .option("--link <link>", "Link to the post")
-  .option("--site-name <name>", "Website name (e.g. ethanswan.com)")
-  .option("--site-url <url>", "Website URL (e.g. https://ethanswan.com)")
-  .action(async (rawOpts: { title?: string; subtitle?: string; link?: string; siteName?: string; siteUrl?: string }) => {
-    const opts = await promptMissing(rawOpts, [
-      { key: "title", message: "Post title:" },
-      { key: "link", message: "Link to the post:" },
-      { key: "siteName", message: "Website name (e.g. ethanswan.com):" },
-      { key: "siteUrl", message: "Website URL (e.g. https://ethanswan.com):" },
-    ]);
-    const subtitleHtml = opts.subtitle
-      ? `\n  <p style="font-size: 16px; color: #666; margin: 4px 0 0;">${opts.subtitle}</p>`
-      : "";
-    console.log(`<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${opts.title}</title>
-</head>
-<body style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; border-top: 4px solid #333;">
-  <p style="font-size: 14px; color: #666; margin: 16px 0;">New post on <a href="${opts.siteUrl}" style="color: #666;">${opts.siteName}</a></p>
-  <hr style="border: none; border-top: 1px solid #ddd; margin: 0 0 16px;">
-  <h1 style="font-size: 24px; margin: 0;">${opts.title}</h1>${subtitleHtml}
-  <p style="margin-top: 36px; text-align: center;">
-    <a href="${opts.link}" style="display: inline-block; padding: 10px 20px; background-color: #333; color: #fff; text-decoration: none; border-radius: 4px;">Read the Post</a>
-  </p>
-</body>
-</html>`);
   });
 
 program

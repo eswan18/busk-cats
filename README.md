@@ -76,36 +76,25 @@ npx tsx src/cli.ts list
 npx tsx src/cli.ts list --list my-blog
 ```
 
-### Send an email to a list
+### Send a new-post announcement
+
+Generates a styled "new post" announcement email, shows you a preview, and sends it to all confirmed subscribers on the list after you confirm.
 
 ```bash
-npx tsx src/cli.ts send --list my-blog --subject "New post: Title" --html "<p>Check out my new post</p>"
-```
-
-Or from a file:
-
-```bash
-npx tsx src/cli.ts send --list my-blog --subject "New post: Title" --html-file email.html
-```
-
-### Draft a new-post announcement email
-
-```bash
-npx tsx src/cli.ts draft \
+npx tsx src/cli.ts send \
+  --list my-blog \
   --title "My Post Title" \
   --link "https://ethanswan.com/posts/my-post" \
   --site-name "ethanswan.com" \
   --site-url "https://ethanswan.com"
 ```
 
-Optional: `--subtitle "A short teaser"`.
+The subject is automatically set to `New Post: {title}`. Optional flags:
 
-Prints a complete, styled HTML "new post" announcement to stdout. Pipe to a file for use with `send --html-file`:
+- `--subtitle "A short teaser"` — adds a subtitle under the title
+- `-y` / `--yes` — skip the confirmation prompt
 
-```bash
-npx tsx src/cli.ts draft --title "..." --link "..." --site-name "..." --site-url "..." > email.html
-npx tsx src/cli.ts send --list my-blog --subject "New post: ..." --html-file email.html
-```
+Any missing required option will be prompted for interactively.
 
 ### Add a subscriber directly (skip confirmation)
 
