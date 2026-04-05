@@ -88,13 +88,24 @@ Or from a file:
 npx tsx src/cli.ts send --list my-blog --subject "New post: Title" --html-file email.html
 ```
 
-### Draft an HTML email
+### Draft a new-post announcement email
 
 ```bash
-npx tsx src/cli.ts draft --subject "Stuff is Happening" --text "Yep it's me"
+npx tsx src/cli.ts draft \
+  --title "My Post Title" \
+  --link "https://ethanswan.com/posts/my-post" \
+  --site-name "ethanswan.com" \
+  --site-url "https://ethanswan.com"
 ```
 
-Prints a full HTML email document to stdout. Pipe to a file for use with `send --html-file`.
+Optional: `--subtitle "A short teaser"`.
+
+Prints a complete, styled HTML "new post" announcement to stdout. Pipe to a file for use with `send --html-file`:
+
+```bash
+npx tsx src/cli.ts draft --title "..." --link "..." --site-name "..." --site-url "..." > email.html
+npx tsx src/cli.ts send --list my-blog --subject "New post: ..." --html-file email.html
+```
 
 ### Add a subscriber directly (skip confirmation)
 

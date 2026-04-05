@@ -1,10 +1,38 @@
 import dotenv from "dotenv";
 import { program } from "commander";
+import { input } from "@inquirer/prompts";
 
 // Handle --env-file before anything else
 const envFileIdx = process.argv.indexOf("--env-file");
 if (envFileIdx !== -1 && process.argv[envFileIdx + 1]) {
   dotenv.config({ path: process.argv[envFileIdx + 1] });
+}
+
+// Prompts write to stderr so stdout (the command's actual output) stays clean for redirection.
+const PROMPT_CTX = { output: process.stderr } as const;
+
+async function promptText(
+  message: string,
+  validate: (v: string) => true | string = (v) => v.trim().length > 0 || "Required",
+): Promise<string> {
+  return input({ message, validate }, PROMPT_CTX);
+}
+
+// Fill in any missing fields on `opts` by prompting interactively.
+// Each spec names an option key; if the key is missing/empty, prompt for it.
+// Returns opts with the prompted keys narrowed to `string`.
+async function promptMissing<T extends Record<string, unknown>, K extends keyof T & string>(
+  opts: T,
+  specs: Array<{ key: K; message: string; validate?: (v: string) => true | string }>,
+): Promise<T & { [P in K]: string }> {
+  const filled: Record<string, unknown> = { ...opts };
+  for (const spec of specs) {
+    const current = filled[spec.key];
+    if (current === undefined || current === "") {
+      filled[spec.key] = await promptText(spec.message, spec.validate);
+    }
+  }
+  return filled as T & { [P in K]: string };
 }
 
 function requireEnv(): { workerUrl: string; adminSecret: string } {
@@ -41,19 +69,24 @@ program.option("--env-file <path>", "Path to a .env file to load");
 program
   .command("send")
   .description("Send an email to all confirmed subscribers on a list")
-  .requiredOption("--list <list>", "Mailing list name")
-  .requiredOption("--subject <subject>", "Email subject")
+  .option("--list <list>", "Mailing list name")
+  .option("--subject <subject>", "Email subject")
   .option("--html <html>", "HTML body as a string")
   .option("--html-file <path>", "Path to an HTML file to use as the body")
-  .action(async (opts: { list: string; subject: string; html?: string; htmlFile?: string }) => {
+  .action(async (rawOpts: { list?: string; subject?: string; html?: string; htmlFile?: string }) => {
+    const opts = await promptMissing(rawOpts, [
+      { key: "list", message: "Mailing list name:" },
+      { key: "subject", message: "Email subject:" },
+    ]);
     let htmlBody = opts.html;
     if (!htmlBody && opts.htmlFile) {
       const fs = await import("fs");
       htmlBody = fs.readFileSync(opts.htmlFile, "utf-8");
     }
     if (!htmlBody) {
-      console.error("Provide --html or --html-file");
-      process.exit(1);
+      const htmlFile = await promptText("Path to HTML file:");
+      const fs = await import("fs");
+      htmlBody = fs.readFileSync(htmlFile, "utf-8");
     }
     const result = await apiCall("POST", "/send", {
       subject: opts.subject,
@@ -91,9 +124,13 @@ program
 program
   .command("add")
   .description("Add a subscriber directly (skips confirmation email)")
-  .requiredOption("--email <email>", "Email to add")
-  .requiredOption("--list <list>", "Mailing list name")
-  .action(async (opts: { email: string; list: string }) => {
+  .option("--email <email>", "Email to add")
+  .option("--list <list>", "Mailing list name")
+  .action(async (rawOpts: { email?: string; list?: string }) => {
+    const opts = await promptMissing(rawOpts, [
+      { key: "email", message: "Email to add:" },
+      { key: "list", message: "Mailing list name:" },
+    ]);
     const result = await apiCall("POST", "/admin/add", { email: opts.email, list: opts.list });
     console.log(result);
   });
@@ -101,12 +138,18 @@ program
 program
   .command("draft")
   .description("Generate a new-post notification email (prints HTML to stdout)")
-  .requiredOption("--title <title>", "Post title")
+  .option("--title <title>", "Post title")
   .option("--subtitle <subtitle>", "Post subtitle")
-  .requiredOption("--link <link>", "Link to the post")
-  .requiredOption("--site-name <name>", "Website name (e.g. ethanswan.com)")
-  .requiredOption("--site-url <url>", "Website URL (e.g. https://ethanswan.com)")
-  .action((opts: { title: string; subtitle?: string; link: string; siteName: string; siteUrl: string }) => {
+  .option("--link <link>", "Link to the post")
+  .option("--site-name <name>", "Website name (e.g. ethanswan.com)")
+  .option("--site-url <url>", "Website URL (e.g. https://ethanswan.com)")
+  .action(async (rawOpts: { title?: string; subtitle?: string; link?: string; siteName?: string; siteUrl?: string }) => {
+    const opts = await promptMissing(rawOpts, [
+      { key: "title", message: "Post title:" },
+      { key: "link", message: "Link to the post:" },
+      { key: "siteName", message: "Website name (e.g. ethanswan.com):" },
+      { key: "siteUrl", message: "Website URL (e.g. https://ethanswan.com):" },
+    ]);
     const subtitleHtml = opts.subtitle
       ? `\n  <p style="font-size: 16px; color: #666; margin: 4px 0 0;">${opts.subtitle}</p>`
       : "";
@@ -131,8 +174,9 @@ program
 program
   .command("form")
   .description("Generate an HTML subscribe form snippet for a list")
-  .requiredOption("--list <list>", "Mailing list name")
-  .action((opts: { list: string }) => {
+  .option("--list <list>", "Mailing list name")
+  .action(async (rawOpts: { list?: string }) => {
+    const opts = await promptMissing(rawOpts, [{ key: "list", message: "Mailing list name:" }]);
     const { workerUrl } = requireEnv();
     console.log(`<form id="subscribe-form">
   <input type="email" id="subscribe-email" placeholder="you@example.com" required />
@@ -165,9 +209,10 @@ program
 program
   .command("delete")
   .description("Delete a subscriber by email (optionally from a specific list)")
-  .requiredOption("--email <email>", "Email to delete")
+  .option("--email <email>", "Email to delete")
   .option("--list <list>", "Only delete from this list (omit to delete from all lists)")
-  .action(async (opts: { email: string; list?: string }) => {
+  .action(async (rawOpts: { email?: string; list?: string }) => {
+    const opts = await promptMissing(rawOpts, [{ key: "email", message: "Email to delete:" }]);
     const body: { email: string; list?: string } = { email: opts.email };
     if (opts.list) body.list = opts.list;
     const result = await apiCall("POST", "/admin/delete", body);
