@@ -313,9 +313,10 @@ describe("POST /admin/delete", () => {
   });
 });
 
-describe("404", () => {
-  it("returns 404 for unknown routes", async () => {
+describe("SPA fallback", () => {
+  it("serves the SPA shell for unknown routes", async () => {
     const res = await SELF.fetch("https://worker.test/nope");
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toContain("text/html");
   });
 });
