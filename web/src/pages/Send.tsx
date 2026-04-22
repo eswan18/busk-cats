@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import { api, ApiError } from "../api";
 
 interface ListSummary { list: string; total: number; confirmed: number }
@@ -32,23 +33,22 @@ function buildEmailHtml(opts: {
 }
 
 export function Send() {
-  const [lists, setLists] = useState<ListSummary[]>([]);
-  const [list, setList] = useState("");
+  const { name } = useParams();
+  const list = name ?? "";
+  const [summary, setSummary] = useState<ListSummary | null>(null);
   const [title, setTitle] = useState("");
   const [subtitle, setSubtitle] = useState("");
   const [link, setLink] = useState("");
-  const [siteName, setSiteName] = useState("ethanswan.com");
-  const [siteUrl, setSiteUrl] = useState("https://ethanswan.com");
+  const [siteName, setSiteName] = useState(list);
+  const [siteUrl, setSiteUrl] = useState(`https://${list}`);
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
 
   useEffect(() => {
-    api<ListSummary[]>("/api/lists").then((ls) => {
-      setLists(ls);
-      const def = ls.find((l) => l.list === "ethanswan.com") ?? ls[0];
-      if (def) setList(def.list);
-    }).catch(() => { /* ignore */ });
-  }, []);
+    api<ListSummary[]>("/api/lists")
+      .then((ls) => setSummary(ls.find((l) => l.list === list) ?? null))
+      .catch(() => { /* ignore */ });
+  }, [list]);
 
   const html = useMemo(
     () => buildEmailHtml({ title, subtitle, link, siteName, siteUrl }),
@@ -56,16 +56,15 @@ export function Send() {
   );
 
   const subject = `New Post: ${title}`;
-
-  const currentListCount = lists.find((l) => l.list === list)?.confirmed ?? 0;
+  const confirmedCount = summary?.confirmed ?? 0;
 
   async function onSend() {
-    if (!list || !title || !link) {
-      setStatus("List, title, and link are required.");
+    if (!title || !link) {
+      setStatus("Title and link are required.");
       return;
     }
     const ok = confirm(
-      `Send "${subject}" to ${currentListCount} confirmed subscriber(s) on ${list}?`,
+      `Send "${subject}" to ${confirmedCount} confirmed subscriber(s) on ${list}?`,
     );
     if (!ok) return;
     setSending(true);
@@ -89,19 +88,11 @@ export function Send() {
 
   return (
     <div>
+      <p><Link to={`/list/${encodeURIComponent(list)}`}>← {list}</Link></p>
       <h1>Send notification</h1>
+      <p className="muted">List: <span className="mono">{list}</span> · {confirmedCount} confirmed subscriber(s)</p>
+
       <div className="card">
-        <div className="field">
-          <label>List</label>
-          <select value={list} onChange={(e) => setList(e.target.value)}>
-            {lists.length === 0 && <option value="">(no lists yet)</option>}
-            {lists.map((l) => (
-              <option key={l.list} value={l.list}>
-                {l.list} ({l.confirmed} confirmed)
-              </option>
-            ))}
-          </select>
-        </div>
         <div className="field">
           <label>Post title</label>
           <input value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -129,8 +120,8 @@ export function Send() {
       <iframe className="preview-frame" sandbox="" srcDoc={html} title="Email preview" />
 
       <div className="actions">
-        <button disabled={sending || !list || !title || !link} onClick={() => { void onSend(); }}>
-          {sending ? "Sending…" : `Send to ${currentListCount} subscriber(s)`}
+        <button disabled={sending || !title || !link} onClick={() => { void onSend(); }}>
+          {sending ? "Sending…" : `Send to ${confirmedCount} subscriber(s)`}
         </button>
       </div>
       {status && <div className="alert">{status}</div>}

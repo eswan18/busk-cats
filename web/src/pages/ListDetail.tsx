@@ -39,15 +39,34 @@ export function ListDetail() {
     }
   }
 
+  const encoded = encodeURIComponent(list);
+
   return (
     <div>
-      <p><Link to="/lists">← All lists</Link></p>
+      <p><Link to="/">← All lists</Link></p>
       <h1 className="mono">{list}</h1>
+
+      <div className="list-actions">
+        <Link to={`/list/${encoded}/send`} className="list-action">
+          <h3>Send notification</h3>
+          <p>Email a new-post announcement.</p>
+        </Link>
+        <Link to={`/list/${encoded}/add`} className="list-action">
+          <h3>Add subscriber</h3>
+          <p>Add someone to this list.</p>
+        </Link>
+        <Link to={`/list/${encoded}/form`} className="list-action">
+          <h3>Form snippet</h3>
+          <p>Generate subscribe HTML.</p>
+        </Link>
+      </div>
+
+      <h2 style={{ marginTop: "2.5rem" }}>Subscribers</h2>
       {error && <div className="alert error">{error}</div>}
       {!subs ? (
         <p className="muted">Loading…</p>
       ) : subs.length === 0 ? (
-        <p className="muted">No subscribers on this list.</p>
+        <p className="muted">No subscribers on this list yet.</p>
       ) : (
         <table>
           <thead>

@@ -1,7 +1,4 @@
-import { useEffect, useState } from "react";
-import { api } from "../api";
-
-interface ListSummary { list: string }
+import { Link, useParams } from "react-router-dom";
 
 function snippet(workerUrl: string, listName: string): string {
   return `<form id="subscribe-form">
@@ -33,28 +30,16 @@ function snippet(workerUrl: string, listName: string): string {
 }
 
 export function FormSnippet() {
-  const [lists, setLists] = useState<ListSummary[]>([]);
-  const [list, setList] = useState("ethanswan.com");
+  const { name } = useParams();
+  const list = name ?? "";
   const workerUrl = window.location.origin;
-
-  useEffect(() => {
-    api<ListSummary[]>("/api/lists").then(setLists).catch(() => { /* ignore */ });
-  }, []);
-
   const code = snippet(workerUrl, list);
 
   return (
     <div>
+      <p><Link to={`/list/${encodeURIComponent(list)}`}>← {list}</Link></p>
       <h1>Form snippet</h1>
-      <div className="field">
-        <label>List</label>
-        <select value={list} onChange={(e) => setList(e.target.value)}>
-          {lists.length === 0 && <option value={list}>{list}</option>}
-          {lists.map((l) => (
-            <option key={l.list} value={l.list}>{l.list}</option>
-          ))}
-        </select>
-      </div>
+      <p className="muted">List: <span className="mono">{list}</span></p>
       <p className="muted">Paste this into any site to collect subscribers for this list:</p>
       <div className="snippet">{code}</div>
       <div className="actions">
