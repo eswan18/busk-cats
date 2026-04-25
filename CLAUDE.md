@@ -14,11 +14,12 @@ Both call the same pure DB functions in `src/db.ts`. Refactor DB changes there; 
 ## Common commands
 
 ```bash
-npm run deploy         # vite build + wrangler deploy (prod)
+npm run deploy         # build + test + wrangler deploy (prod)
 npm run dev            # wrangler dev on :8787 (needs .dev.vars)
 npm run dev:web        # vite dev on :5173 (proxies API to :8787)
 npm run cli -- <cmd>   # run the admin CLI
-npx vitest run         # all tests: workers pool + node env
+npm test               # build SPA (via pretest) + run all tests
+npx vitest run         # tests only, skips the build (faster for tight loops)
 ```
 
 Wrangler is **local-only** (devDependency) — use `npx wrangler …`, not `wrangler …` on PATH.
@@ -48,9 +49,7 @@ Wrangler is **local-only** (devDependency) — use `npx wrangler …`, not `wran
 
 ## Before deploying changes
 
-1. `npx vitest run` — should be 42+ tests, all green.
-2. `npm run build` — confirms the SPA still builds.
-3. `npm run deploy` — combined build + deploy.
+`npm run deploy` runs the SPA build, the test suite, and `wrangler deploy` in sequence. If anything fails, deploy aborts. No separate verification steps needed.
 
 ## Gotchas
 

@@ -7,7 +7,8 @@
     "dev:web": "vite --config web/vite.config.ts",
     "dev:all": "npm-run-all -p dev dev:web",
     "build": "vite build --config web/vite.config.ts",
-    "deploy": "npm run build && wrangler deploy",
+    "deploy": "npm test && wrangler deploy",
+    "pretest": "npm run build",
     "test": "vitest run",
     "cli": "tsx src/cli.ts"
   },
