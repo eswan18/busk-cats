@@ -4,6 +4,7 @@ import {
   deleteByEmail,
   getConfirmedSubscribers,
   insertConfirmedSubscriber,
+  insertSentNotification,
   listSubscribers,
 } from "../db";
 import { sendToList } from "../email";
@@ -20,13 +21,26 @@ function unauthorized(request: Request, env: Env): Response {
 export async function handleSend(request: Request, env: Env): Promise<Response> {
   if (!checkAuth(request, env)) return unauthorized(request, env);
 
-  const body = await request.json<{ subject?: string; html?: string; list?: string }>();
+  const body = await request.json<{
+    subject?: string;
+    html?: string;
+    list?: string;
+    link?: string;
+  }>();
   if (!body?.subject || !body?.html || !body?.list) {
     return corsJson({ error: "Missing subject, html, or list" }, request, env, 400);
   }
 
   const subscribers = await getConfirmedSubscribers(env.DB, body.list);
   const sent = await sendToList(env, subscribers, body.subject, body.html);
+  await insertSentNotification(env.DB, {
+    list: body.list,
+    subject: body.subject,
+    html: body.html,
+    post_link: body.link ?? null,
+    recipient_count: sent,
+    sent_by: "cli",
+  });
   return corsJson({ sent }, request, env);
 }
 

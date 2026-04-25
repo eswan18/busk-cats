@@ -23,6 +23,7 @@ import {
   handleApiSubscribersPost,
   handleApiSubscribersDelete,
   handleApiSend,
+  handleApiSentList,
 } from "./handlers/api";
 
 type RouteHandler = (request: Request, env: Env) => Promise<Response>;
@@ -54,6 +55,7 @@ const ROUTES: Route[] = [
   { method: "POST", path: "/api/subscribers", handler: handleApiSubscribersPost },
   { method: "DELETE", path: "/api/subscribers", handler: handleApiSubscribersDelete },
   { method: "POST", path: "/api/send", handler: handleApiSend },
+  { method: "GET", path: "/api/sent", handler: handleApiSentList },
 ];
 
 export async function route(request: Request, env: Env): Promise<Response> {
