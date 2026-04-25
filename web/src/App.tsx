@@ -6,6 +6,7 @@ import { ListDetail } from "./pages/ListDetail";
 import { Send } from "./pages/Send";
 import { Add } from "./pages/Add";
 import { FormSnippet } from "./pages/FormSnippet";
+import { History } from "./pages/History";
 import { NewList } from "./pages/NewList";
 
 export function App() {
@@ -42,6 +43,7 @@ function Shell() {
         <Route path="/list/:name/send" element={<Send />} />
         <Route path="/list/:name/add" element={<Add />} />
         <Route path="/list/:name/form" element={<FormSnippet />} />
+        <Route path="/list/:name/history" element={<History />} />
         <Route path="*" element={<p>Not found.</p>} />
       </Routes>
     </div>

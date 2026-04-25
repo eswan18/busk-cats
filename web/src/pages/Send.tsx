@@ -72,7 +72,7 @@ export function Send() {
     try {
       const res = await api<{ sent: number }>("/api/send", {
         method: "POST",
-        body: JSON.stringify({ subject, html, list }),
+        body: JSON.stringify({ subject, html, list, link }),
       });
       setStatus(`Sent to ${res.sent} subscriber(s).`);
     } catch (e) {

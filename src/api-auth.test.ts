@@ -22,6 +22,10 @@ async function resetDb() {
   await env.DB.prepare(
     "CREATE TABLE subscribers (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT NOT NULL, list TEXT NOT NULL, token TEXT UNIQUE NOT NULL, confirmed INTEGER DEFAULT 0, created_at TEXT DEFAULT (datetime('now')), UNIQUE(email, list))",
   ).run();
+  await env.DB.prepare("DROP TABLE IF EXISTS sent_notifications").run();
+  await env.DB.prepare(
+    "CREATE TABLE sent_notifications (id INTEGER PRIMARY KEY AUTOINCREMENT, list TEXT NOT NULL, subject TEXT NOT NULL, html TEXT NOT NULL, post_link TEXT, recipient_count INTEGER NOT NULL, sent_by TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')))",
+  ).run();
 }
 
 beforeAll(() => {
@@ -156,6 +160,71 @@ describe("POST /api/subscribers", () => {
       "SELECT confirmed FROM subscribers WHERE email = ?",
     ).bind("b@example.com").all<{ confirmed: number }>();
     expect(results[0].confirmed).toBe(0);
+  });
+});
+
+describe("POST /api/send", () => {
+  it("logs a sent_notifications row with sent_by=<username> and the link", async () => {
+    mockResend();
+    await env.DB.prepare("INSERT INTO subscribers (email, list, token, confirmed) VALUES (?, ?, ?, 1)")
+      .bind("a@example.com", "blog", "t1")
+      .run();
+
+    const cookie = await validSessionCookie();
+    const res = await SELF.fetch("https://worker.test/api/send", {
+      method: "POST",
+      headers: { Cookie: cookie, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        subject: "Hello",
+        html: "<p>Hi</p>",
+        list: "blog",
+        link: "https://example.com/post",
+      }),
+    });
+    expect(res.status).toBe(200);
+
+    const { results } = await env.DB.prepare("SELECT * FROM sent_notifications").all<{
+      list: string;
+      subject: string;
+      post_link: string | null;
+      recipient_count: number;
+      sent_by: string;
+    }>();
+    expect(results.length).toBe(1);
+    expect(results[0].list).toBe("blog");
+    expect(results[0].subject).toBe("Hello");
+    expect(results[0].post_link).toBe("https://example.com/post");
+    expect(results[0].recipient_count).toBe(1);
+    expect(results[0].sent_by).toBe(env.ALLOWED_USERNAME);
+  });
+});
+
+describe("GET /api/sent", () => {
+  it("returns 401 without a session", async () => {
+    const res = await SELF.fetch("https://worker.test/api/sent");
+    expect(res.status).toBe(401);
+  });
+
+  it("returns rows ordered newest-first, filtered by list", async () => {
+    await env.DB.prepare(
+      "INSERT INTO sent_notifications (list, subject, html, post_link, recipient_count, sent_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    ).bind("blog", "First", "<p>1</p>", null, 5, "eswan18", "2026-01-01 10:00:00").run();
+    await env.DB.prepare(
+      "INSERT INTO sent_notifications (list, subject, html, post_link, recipient_count, sent_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    ).bind("blog", "Second", "<p>2</p>", "https://x", 7, "eswan18", "2026-02-01 10:00:00").run();
+    await env.DB.prepare(
+      "INSERT INTO sent_notifications (list, subject, html, post_link, recipient_count, sent_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    ).bind("notes", "Other", "<p>3</p>", null, 2, "eswan18", "2026-03-01 10:00:00").run();
+
+    const cookie = await validSessionCookie();
+    const res = await SELF.fetch("https://worker.test/api/sent?list=blog", {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as Array<{ subject: string; recipient_count: number }>;
+    expect(data.length).toBe(2);
+    expect(data[0].subject).toBe("Second");
+    expect(data[1].subject).toBe("First");
   });
 });
 

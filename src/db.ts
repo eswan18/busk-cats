@@ -113,3 +113,52 @@ export async function getConfirmedSubscribers(
     .all<{ email: string; token: string }>();
   return results;
 }
+
+export interface SentNotification {
+  id: number;
+  list: string;
+  subject: string;
+  html: string;
+  post_link: string | null;
+  recipient_count: number;
+  sent_by: string;
+  created_at: string;
+}
+
+export async function insertSentNotification(
+  db: D1Database,
+  row: {
+    list: string;
+    subject: string;
+    html: string;
+    post_link: string | null;
+    recipient_count: number;
+    sent_by: string;
+  },
+): Promise<void> {
+  await db
+    .prepare(
+      "INSERT INTO sent_notifications (list, subject, html, post_link, recipient_count, sent_by) VALUES (?, ?, ?, ?, ?, ?)",
+    )
+    .bind(row.list, row.subject, row.html, row.post_link, row.recipient_count, row.sent_by)
+    .run();
+}
+
+export async function listSentNotifications(
+  db: D1Database,
+  list?: string,
+): Promise<SentNotification[]> {
+  const { results } = list
+    ? await db
+        .prepare(
+          "SELECT id, list, subject, html, post_link, recipient_count, sent_by, created_at FROM sent_notifications WHERE list = ? ORDER BY created_at DESC, id DESC",
+        )
+        .bind(list)
+        .all<SentNotification>()
+    : await db
+        .prepare(
+          "SELECT id, list, subject, html, post_link, recipient_count, sent_by, created_at FROM sent_notifications ORDER BY created_at DESC, id DESC",
+        )
+        .all<SentNotification>();
+  return results;
+}

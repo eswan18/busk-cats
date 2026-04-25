@@ -10,6 +10,10 @@ beforeEach(async () => {
   // Reset DB
   await env.DB.exec("DROP TABLE IF EXISTS subscribers;");
   await env.DB.exec("CREATE TABLE subscribers (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT NOT NULL, list TEXT NOT NULL, token TEXT UNIQUE NOT NULL, confirmed INTEGER DEFAULT 0, created_at TEXT DEFAULT (datetime('now')), UNIQUE(email, list));");
+  await env.DB.prepare("DROP TABLE IF EXISTS sent_notifications").run();
+  await env.DB.prepare(
+    "CREATE TABLE sent_notifications (id INTEGER PRIMARY KEY AUTOINCREMENT, list TEXT NOT NULL, subject TEXT NOT NULL, html TEXT NOT NULL, post_link TEXT, recipient_count INTEGER NOT NULL, sent_by TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')))",
+  ).run();
   // Mock Resend API to always succeed
   fetchMock
     .get("https://api.resend.com")
@@ -206,6 +210,57 @@ describe("POST /send", () => {
     });
     const data = await res.json() as { sent: number };
     expect(data.sent).toBe(1);
+  });
+
+  it("logs a sent_notifications row with sent_by=cli and the link when supplied", async () => {
+    await env.DB.prepare("INSERT INTO subscribers (email, list, token, confirmed) VALUES (?, ?, ?, 1)")
+      .bind("a@example.com", "blog", "token1")
+      .run();
+
+    const res = await SELF.fetch("https://worker.test/send", {
+      method: "POST",
+      headers: adminHeaders(),
+      body: JSON.stringify({
+        subject: "Hi",
+        html: "<p>Hi</p>",
+        list: "blog",
+        link: "https://example.com/post",
+      }),
+    });
+    expect(res.status).toBe(200);
+
+    const { results } = await env.DB.prepare("SELECT * FROM sent_notifications").all<{
+      list: string;
+      subject: string;
+      html: string;
+      post_link: string | null;
+      recipient_count: number;
+      sent_by: string;
+    }>();
+    expect(results.length).toBe(1);
+    expect(results[0].list).toBe("blog");
+    expect(results[0].subject).toBe("Hi");
+    expect(results[0].html).toBe("<p>Hi</p>");
+    expect(results[0].post_link).toBe("https://example.com/post");
+    expect(results[0].recipient_count).toBe(1);
+    expect(results[0].sent_by).toBe("cli");
+  });
+
+  it("logs post_link as NULL when link is omitted", async () => {
+    await env.DB.prepare("INSERT INTO subscribers (email, list, token, confirmed) VALUES (?, ?, ?, 1)")
+      .bind("a@example.com", "blog", "token1")
+      .run();
+
+    await SELF.fetch("https://worker.test/send", {
+      method: "POST",
+      headers: adminHeaders(),
+      body: JSON.stringify({ subject: "Hi", html: "<p>Hi</p>", list: "blog" }),
+    });
+
+    const { results } = await env.DB.prepare("SELECT post_link FROM sent_notifications").all<{
+      post_link: string | null;
+    }>();
+    expect(results[0].post_link).toBeNull();
   });
 });
 

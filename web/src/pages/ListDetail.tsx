@@ -59,6 +59,10 @@ export function ListDetail() {
           <h3>Form snippet</h3>
           <p>Generate subscribe HTML.</p>
         </Link>
+        <Link to={`/list/${encoded}/history`} className="list-action">
+          <h3>Sent history</h3>
+          <p>See past notifications.</p>
+        </Link>
       </div>
 
       <h2 style={{ marginTop: "2.5rem" }}>Subscribers</h2>

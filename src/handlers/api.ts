@@ -6,7 +6,9 @@ import {
   getConfirmedSubscribers,
   insertConfirmedSubscriber,
   insertPendingSubscriber,
+  insertSentNotification,
   listListSummaries,
+  listSentNotifications,
   listSubscribers,
 } from "../db";
 import { sendEmail, sendToList } from "../email";
@@ -86,11 +88,33 @@ export async function handleApiSend(request: Request, env: Env): Promise<Respons
   const session = await requireSession(request, env);
   if (session instanceof Response) return session;
 
-  const body = await request.json<{ subject?: string; html?: string; list?: string }>();
+  const body = await request.json<{
+    subject?: string;
+    html?: string;
+    list?: string;
+    link?: string;
+  }>();
   if (!body?.subject || !body?.html || !body?.list) {
     return json({ error: "Missing subject, html, or list" }, 400);
   }
   const subscribers = await getConfirmedSubscribers(env.DB, body.list);
   const sent = await sendToList(env, subscribers, body.subject, body.html);
+  await insertSentNotification(env.DB, {
+    list: body.list,
+    subject: body.subject,
+    html: body.html,
+    post_link: body.link ?? null,
+    recipient_count: sent,
+    sent_by: session.username,
+  });
   return json({ sent });
+}
+
+export async function handleApiSentList(request: Request, env: Env): Promise<Response> {
+  const session = await requireSession(request, env);
+  if (session instanceof Response) return session;
+  const url = new URL(request.url);
+  const list = url.searchParams.get("list") ?? undefined;
+  const results = await listSentNotifications(env.DB, list);
+  return json(results);
 }

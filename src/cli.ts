@@ -127,7 +127,7 @@ program
       }
     }
 
-    const result = (await apiCall("POST", "/send", { subject, html, list: opts.list })) as { sent: number };
+    const result = (await apiCall("POST", "/send", { subject, html, list: opts.list, link: opts.link })) as { sent: number };
     console.log(`Sent to ${result.sent} subscriber(s).`);
   });
 
